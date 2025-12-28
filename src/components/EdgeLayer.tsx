@@ -1,10 +1,9 @@
 import React from 'react';
 import { X } from 'lucide-react';
-import type { Edge, Node } from '../types';
+import type { Edge } from '../types';
 
 interface EdgeLayerProps {
   edges: Edge[];
-  nodes: Node[];
   connectingSourceId: string | null;
   mousePos: { x: number; y: number };
   getNodeCenter: (nodeId: string) => { x: number; y: number };
@@ -13,7 +12,6 @@ interface EdgeLayerProps {
 
 export default function EdgeLayer({
   edges,
-  nodes,
   connectingSourceId,
   mousePos,
   getNodeCenter,

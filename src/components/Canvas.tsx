@@ -100,7 +100,6 @@ export default function Canvas({
           {/* Edges Layer */}
           <EdgeLayer
             edges={edges}
-            nodes={nodes}
             connectingSourceId={connectingSourceId}
             mousePos={mousePos}
             getNodeCenter={getNodeCenter}

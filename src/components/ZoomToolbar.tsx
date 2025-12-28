@@ -1,4 +1,3 @@
-import React from 'react';
 import { ZoomIn, ZoomOut } from 'lucide-react';
 import type { ViewState } from '../types';
 import { MIN_SCALE, MAX_SCALE } from '../constants';
