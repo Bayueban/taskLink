@@ -1,15 +1,15 @@
 // --- Constants ---
 export const COLORS = [
-  '#ffffff', // White (Default)
-  '#fecaca', // Red 200
-  '#fed7aa', // Orange 200
-  '#fde68a', // Amber 200
-  '#bbf7d0', // Green 200
-  '#a5f3fc', // Cyan 200
-  '#bfdbfe', // Blue 200
-  '#ddd6fe', // Violet 200
-  '#fbcfe8', // Pink 200
-  '#e2e8f0', // Slate 200
+  '#ffffff', // White (Default) - 纯白，最佳对比度
+  '#fee2e2', // Red 100 - 柔和的红色，饱和度适中
+  '#fef3c7', // Amber 100 - 温暖的黄色
+  '#d1fae5', // Green 100 - 清新的绿色
+  '#dbeafe', // Blue 100 - 清爽的蓝色
+  '#e9d5ff', // Violet 200 - 优雅的紫色
+  '#fce7f3', // Pink 100 - 柔和的粉色
+  '#e0f2fe', // Sky 100 - 天空蓝
+  '#fef9c3', // Yellow 100 - 明亮的黄色
+  '#f1f5f9', // Slate 100 - 淡灰色，微妙对比
 ];
 
 export const MIN_WIDTH = 200;

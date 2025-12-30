@@ -47,8 +47,8 @@ export default function NodeCard({
       }}
       className={`absolute rounded-2xl flex flex-col transition-shadow duration-200 group
         ${isSelected 
-          ? 'z-50 shadow-xl ring-2 ring-indigo-500 ring-offset-2 ring-offset-[#f8fafc]' 
-          : 'z-10 shadow-sm border border-slate-200/60 hover:shadow-md'
+          ? 'z-50 shadow-xl ring-2 ring-indigo-500 ring-offset-2 ring-offset-[#e2e8f0]' 
+          : 'z-10 shadow-md border border-slate-300/50 hover:shadow-lg hover:border-slate-400/60'
         }
         ${isCompleted ? 'opacity-60 grayscale-[0.5] border-2 border-green-400' : ''}
       `}
@@ -83,14 +83,26 @@ export default function NodeCard({
           {/* Color Palette */}
           {node.type === 'text' && (
             <div className="grid grid-cols-1 gap-1.5 place-items-center">
-              {COLORS.map(c => (
-                <button 
-                  key={c}
-                  onClick={() => updateNodeColor(node.id, c)}
-                  className={`w-4 h-4 rounded-full border border-slate-200 shadow-sm transition-transform hover:scale-125 ${node.color === c ? 'ring-2 ring-slate-400 scale-110' : ''}`}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
+              {COLORS.map(c => {
+                const isWhite = c === '#ffffff';
+                const isSelected = node.color === c;
+                return (
+                  <button 
+                    key={c}
+                    onClick={() => updateNodeColor(node.id, c)}
+                    className={`w-4 h-4 rounded-full transition-all hover:scale-125 ${
+                      isWhite 
+                        ? 'border-2 border-slate-400 shadow-sm' 
+                        : 'border border-slate-300 shadow-sm'
+                    } ${
+                      isSelected 
+                        ? 'ring-2 ring-indigo-500 ring-offset-1 ring-offset-white scale-110 shadow-md' 
+                        : 'hover:ring-1 hover:ring-slate-300'
+                    }`}
+                    style={{ backgroundColor: c }}
+                  />
+                );
+              })}
             </div>
           )}
         </div>
@@ -117,7 +129,7 @@ export default function NodeCard({
             value={node.content}
             onChange={(e) => updateNodeContent(node.id, e.target.value)}
             className="w-full flex-1 bg-transparent text-slate-600 text-sm leading-relaxed resize-none outline-none placeholder:text-slate-300"
-            placeholder="Type something..."
+            placeholder="描述（可选）"
           />
         </div>
       ) : (
