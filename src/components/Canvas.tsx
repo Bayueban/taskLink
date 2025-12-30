@@ -70,7 +70,7 @@ export default function Canvas({
       {/* Linking Mode Indicator */}
       {connectingSourceId && (
         <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-5 py-2 rounded-full shadow-lg shadow-indigo-500/30 z-30 text-sm font-medium animate-in fade-in slide-in-from-top-4">
-          Select target card to connect
+          选择目标卡片连接
         </div>
       )}
 
