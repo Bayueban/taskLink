@@ -84,7 +84,7 @@ export default function DetectiveBoard() {
   // --- Global Event Listeners ---
   useEffect(() => {
     const handleGlobalMouseMove = (e: MouseEvent) => {
-      const { nodes, edges, viewState } = stateRef.current;
+      const { viewState } = stateRef.current;
 
       const internalScreenToWorld = (sx: number, sy: number) => {
         return {
