@@ -106,11 +106,9 @@ export default function EdgeComponent({
       
       {/* 文本标记（小型卡片样式） */}
       {edge.label && (() => {
-        // 计算文字位置：正线+32，负线-32
-        const labelOffsetX = isForward ? 32 : -32;
-        const labelOffsetY = isForward ? 32 : -32;
-        const labelX = midX + labelOffsetX - 50;
-        const labelY = midY + labelOffsetY - 20;
+        // 计算文字位置：正线+40，负线-40
+        const labelOffsetX = isForward ? 80 : -80;
+        const labelOffsetY = isForward ? 80: -80;
         
         // 将hex颜色转换为rgba，透明度0.3
         const hexToRgba = (hex: string, alpha: number) => {
@@ -120,24 +118,44 @@ export default function EdgeComponent({
           return `rgba(${r}, ${g}, ${b}, ${alpha})`;
         };
         
+        // 计算合适的宽度和高度（根据文字长度动态调整）
+        const maxWidth = 120;
+        const minHeight = 32;
+        const lineHeight = 18;
+        const maxHeight = minHeight + lineHeight; // 支持两行
+        
+        // 正线以底边为标准，负线以顶边为标准
+        let labelX, labelY;
+        if (isForward) {
+          // 正线：底边对齐，y坐标是偏移点 + 偏移量
+          labelX = midX + labelOffsetX - maxWidth / 2;
+          labelY = midY + labelOffsetY - maxHeight; // 底边对齐
+        } else {
+          // 负线：顶边对齐（保持原逻辑）
+          labelX = midX + labelOffsetX - maxWidth / 2;
+          labelY = midY + labelOffsetY;
+        }
+        
         return (
           <foreignObject
             x={labelX}
             y={labelY}
-            width="100"
-            height="40"
-            className="pointer-events-none"
+            width={maxWidth}
+            height={maxHeight}
+            className="pointer-events-none overflow-visible"
           >
             <div
-              className="px-2 py-1 rounded-lg shadow-md text-xs text-slate-700 text-center"
+              className="px-2 py-1.5 rounded-lg shadow-md text-xs text-slate-700 text-center w-full h-full flex items-center justify-center"
               style={{
                 backgroundColor: hexToRgba(color, 0.3),
-                lineHeight: '1.4',
+                lineHeight: `${lineHeight}px`,
                 wordBreak: 'break-word',
                 display: '-webkit-box',
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: 'vertical',
                 overflow: 'hidden',
+                minHeight: `${minHeight}px`,
+                maxHeight: `${maxHeight}px`,
               }}
             >
               {edge.label}
@@ -146,32 +164,30 @@ export default function EdgeComponent({
         );
       })()}
       
-      {/* 方向icon（始终显示，仅在没有标签时显示） */}
-      {!edge.label && (
-        <foreignObject
-          x={midX - 12}
-          y={midY - 12}
-          width="24"
-          height="24"
-          className="pointer-events-none"
+      {/* 方向icon（始终显示） */}
+      <foreignObject
+        x={midX - 12}
+        y={midY - 12}
+        width="24"
+        height="24"
+        className="pointer-events-none"
+      >
+        <div
+          className="transition-all group-hover:scale-110"
+          style={{
+            transform: `rotate(${angle}deg)`,
+          }}
         >
-          <div
-            className="transition-all group-hover:scale-110"
-            style={{
-              transform: `rotate(${angle}deg)`,
-            }}
-          >
-            <ArrowRight 
-              className="w-6 h-6" 
-              style={{ 
-                color: color,
-                strokeWidth: 3,
-                filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1))'
-              }} 
-            />
-          </div>
-        </foreignObject>
-      )}
+          <ArrowRight 
+            className="w-6 h-6" 
+            style={{ 
+              color: color,
+              strokeWidth: 3,
+              filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1))'
+            }} 
+          />
+        </div>
+      </foreignObject>
     </g>
   );
 }

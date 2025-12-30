@@ -34,7 +34,7 @@ export const MAX_HEIGHT = 800;
 
 // --- New Limits ---
 export const MIN_SCALE = 0.2;
-export const MAX_SCALE = 1.0;
+export const MAX_SCALE = 1.2;
 // Defining a "Soft World Boundary" for the Minimap. 
 // Coordinate range: -4000 to +4000 on both axes.
 export const WORLD_LIMIT = 4000; 
