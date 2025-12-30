@@ -118,18 +118,41 @@ export default function NodeCard({
       {/* Content */}
       {node.type === 'text' ? (
         <div className="flex flex-col h-full p-5 pt-3">
-          <input
-            type="text"
+          <textarea
             value={node.title}
-            onChange={(e) => updateNodeTitle(node.id, e.target.value)}
-            className="w-full bg-transparent text-slate-900 font-bold text-lg mb-2 outline-none placeholder:text-slate-300"
-            placeholder="Untitled"
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value.length <= 50) {
+                updateNodeTitle(node.id, value);
+              }
+            }}
+            maxLength={50}
+            rows={1}
+            className="w-full bg-transparent text-slate-900 font-bold text-lg mb-2 outline-none placeholder:text-slate-300 resize-none overflow-hidden break-words"
+            placeholder="Untitled（最多50字符）"
+            style={{ 
+              wordWrap: 'break-word', 
+              whiteSpace: 'pre-wrap',
+              minHeight: '1.5rem',
+              lineHeight: '1.5rem'
+            }}
+            onInput={(e) => {
+              const target = e.target as HTMLTextAreaElement;
+              target.style.height = 'auto';
+              target.style.height = target.scrollHeight + 'px';
+            }}
           />
           <textarea
             value={node.content}
-            onChange={(e) => updateNodeContent(node.id, e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value.length <= 500) {
+                updateNodeContent(node.id, value);
+              }
+            }}
+            maxLength={500}
             className="w-full flex-1 bg-transparent text-slate-600 text-sm leading-relaxed resize-none outline-none placeholder:text-slate-300"
-            placeholder="描述（可选）"
+            placeholder="描述（可选，最多500字符）"
           />
         </div>
       ) : (

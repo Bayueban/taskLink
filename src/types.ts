@@ -28,11 +28,17 @@ export type Node = {
   color?: string;
 };
 
+export type EdgeStyle = 'solid' | 'dashed' | 'dotted';
+
 export type Edge = {
   id: string;
   workspaceId: string;
   from: string;
   to: string;
+  color?: string;
+  style?: EdgeStyle;
+  label?: string;
+  direction?: 'forward' | 'backward'; // 用于区分双向线段
 };
 
 export type ViewState = {

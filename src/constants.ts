@@ -1,4 +1,5 @@
 // --- Constants ---
+// 卡片颜色（柔和的浅色）
 export const COLORS = [
   '#ffffff', // White (Default) - 纯白，最佳对比度
   '#fee2e2', // Red 100 - 柔和的红色，饱和度适中
@@ -10,6 +11,20 @@ export const COLORS = [
   '#e0f2fe', // Sky 100 - 天空蓝
   '#fef9c3', // Yellow 100 - 明亮的黄色
   '#f1f5f9', // Slate 100 - 淡灰色，微妙对比
+];
+
+// 线段颜色（纯色、明显、不与卡片颜色重复）
+export const EDGE_COLORS = [
+  '#64748b', // Slate 500 - 中性灰色，默认线段颜色
+  '#ef4444', // Red 500 - 纯红色
+  '#f59e0b', // Amber 500 - 纯橙色
+  '#10b981', // Green 500 - 纯绿色
+  '#3b82f6', // Blue 500 - 纯蓝色
+  '#8b5cf6', // Violet 500 - 纯紫色
+  '#ec4899', // Pink 500 - 纯粉色
+  '#06b6d4', // Cyan 500 - 纯青色
+  '#eab308', // Yellow 500 - 纯黄色
+  '#6366f1', // Indigo 500 - 纯靛蓝色
 ];
 
 export const MIN_WIDTH = 200;

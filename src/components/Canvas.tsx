@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Node, Edge, Todo, ViewState } from '../types';
 import ZoomToolbar from './ZoomToolbar';
 import Minimap from './Minimap';
 import EdgeLayer from './EdgeLayer';
 import NodeCard from './NodeCard';
+import EdgeToolbar from './EdgeToolbar';
 
 interface CanvasProps {
   canvasRef: React.RefObject<HTMLDivElement>;
@@ -14,6 +15,7 @@ interface CanvasProps {
   selectedId: string | null;
   connectingSourceId: string | null;
   mousePos: { x: number; y: number };
+  isDraggingNode: boolean;
   setViewState: (state: ViewState | ((prev: ViewState) => ViewState)) => void;
   handleWheel: (e: React.WheelEvent) => void;
   handleMouseDown: (e: React.MouseEvent) => void;
@@ -39,6 +41,7 @@ export default function Canvas({
   selectedId,
   connectingSourceId,
   mousePos,
+  isDraggingNode,
   setViewState,
   handleWheel,
   handleMouseDown,
@@ -54,6 +57,72 @@ export default function Canvas({
   getNodeCenter,
   setEdges,
 }: CanvasProps) {
+  const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
+  const [toolbarPosition, setToolbarPosition] = useState<{ x: number; y: number } | null>(null);
+
+  // 关闭工具栏
+  const handleCloseToolbar = () => {
+    setSelectedEdge(null);
+    setToolbarPosition(null);
+  };
+
+  // 处理线段选择（如果点击的是同一个线段，则关闭工具栏；否则切换）
+  const handleEdgeSelect = (edge: Edge, position: { x: number; y: number }) => {
+    if (selectedEdge?.id === edge.id) {
+      // 点击同一个线段，关闭工具栏
+      handleCloseToolbar();
+    } else {
+      // 点击不同线段，切换工具栏
+      setSelectedEdge(edge);
+      setToolbarPosition(position);
+    }
+  };
+
+  // 处理线段更新
+  const handleEdgeUpdate = (updates: Partial<Edge>) => {
+    if (!selectedEdge) return;
+    setEdges(prev => prev.map(edge => 
+      edge.id === selectedEdge.id ? { ...edge, ...updates } : edge
+    ));
+    // 更新选中的edge状态
+    setSelectedEdge({ ...selectedEdge, ...updates });
+  };
+
+  // 处理线段删除
+  const handleEdgeDelete = () => {
+    if (!selectedEdge) return;
+    setEdges(prev => prev.filter(edge => edge.id !== selectedEdge.id));
+    handleCloseToolbar();
+  };
+
+  // 点击外部关闭工具栏（更智能的逻辑）
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!selectedEdge) return;
+      
+      const target = e.target as HTMLElement;
+      
+      // 如果点击的是工具栏本身，不关闭
+      if (target.closest('.edge-toolbar')) {
+        return;
+      }
+      
+      // 如果点击的是线段，不关闭（会通过handleEdgeSelect切换）
+      if (target.closest('svg') && target.closest('path[id^="edge-hit"]')) {
+        return;
+      }
+      
+      // 其他情况关闭工具栏
+      handleCloseToolbar();
+    };
+
+    if (selectedEdge) {
+      // 使用mousedown而不是click，以便更早响应
+      document.addEventListener('mousedown', handleClickOutside, true);
+      return () => document.removeEventListener('mousedown', handleClickOutside, true);
+    }
+  }, [selectedEdge]);
+
   return (
     <div className="flex-1 relative bg-[#e2e8f0] overflow-hidden select-none">
       {/* Subtle Grid Pattern */}
@@ -102,8 +171,12 @@ export default function Canvas({
             edges={edges}
             connectingSourceId={connectingSourceId}
             mousePos={mousePos}
+            isDraggingNode={isDraggingNode}
+            viewState={viewState}
             getNodeCenter={getNodeCenter}
             setEdges={setEdges}
+            canvasRef={canvasRef}
+            onEdgeSelect={handleEdgeSelect}
           />
 
           {/* Nodes Layer */}
@@ -129,6 +202,17 @@ export default function Canvas({
           })}
         </div>
       </div>
+
+      {/* Edge Toolbar */}
+      {selectedEdge && toolbarPosition && (
+        <EdgeToolbar
+          edge={selectedEdge}
+          position={toolbarPosition}
+          onClose={handleCloseToolbar}
+          onUpdate={handleEdgeUpdate}
+          onDelete={handleEdgeDelete}
+        />
+      )}
     </div>
   );
 }

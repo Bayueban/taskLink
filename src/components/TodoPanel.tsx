@@ -107,7 +107,12 @@ export default function TodoPanel({
                     <input
                       type="text"
                       value={editingTitle}
-                      onChange={(e) => setEditingTitle(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value.length <= 18) {
+                          setEditingTitle(value);
+                        }
+                      }}
                       onBlur={() => handleSaveEdit(workspace.id)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
@@ -116,6 +121,7 @@ export default function TodoPanel({
                           handleCancelEdit();
                         }
                       }}
+                      maxLength={18}
                       className="flex-1 px-2 py-1 text-sm border border-indigo-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
                       autoFocus
                     />
@@ -175,7 +181,12 @@ export default function TodoPanel({
               <input
                 type="text"
                 value={newWorkspaceTitle}
-                onChange={(e) => setNewWorkspaceTitle(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value.length <= 18) {
+                    setNewWorkspaceTitle(value);
+                  }
+                }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     handleCreateWorkspace();
@@ -184,7 +195,8 @@ export default function TodoPanel({
                     setNewWorkspaceTitle('');
                   }
                 }}
-                placeholder="输入工作区名称..."
+                placeholder="输入工作区名称（最多18字符）..."
+                maxLength={18}
                 className="flex-1 px-2 py-1 text-sm border border-indigo-300 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
                 autoFocus
               />
@@ -218,18 +230,41 @@ export default function TodoPanel({
       
       <div className="p-4 flex flex-col gap-3">
         <div className="space-y-2">
-          <input 
-            type="text" 
+          <textarea 
             value={newTodoTitle}
-            onChange={(e) => setNewTodoTitle(e.target.value)}
-            placeholder="添加新任务..."
-            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400 font-medium"
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value.length <= 50) {
+                setNewTodoTitle(value);
+              }
+            }}
+            placeholder="添加新任务（最多50字符）..."
+            maxLength={50}
+            rows={1}
+            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400 font-medium resize-none overflow-hidden break-words"
+            style={{ 
+              wordWrap: 'break-word', 
+              whiteSpace: 'pre-wrap',
+              minHeight: '2.5rem',
+              lineHeight: '1.5rem'
+            }}
+            onInput={(e) => {
+              const target = e.target as HTMLTextAreaElement;
+              target.style.height = 'auto';
+              target.style.height = target.scrollHeight + 'px';
+            }}
           />
           <textarea 
             value={newTodoContent}
-            onChange={(e) => setNewTodoContent(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (value.length <= 500) {
+                setNewTodoContent(value);
+              }
+            }}
             onKeyDown={(e) => e.key === 'Enter' && e.ctrlKey && addTodo()}
-            placeholder="描述 (可选)"
+            placeholder="描述（可选，最多500字符）"
+            maxLength={500}
             className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400 resize-none h-20"
           />
         </div>
@@ -277,7 +312,7 @@ export default function TodoPanel({
                 <Check className="w-3.5 h-3.5" />
               </button>
               <div className="flex-1 min-w-0">
-                <h3 className={`text-sm font-semibold leading-tight ${todo.completed ? 'line-through text-slate-500' : 'text-slate-800'}`}>
+                <h3 className={`text-sm font-semibold leading-tight break-words ${todo.completed ? 'line-through text-slate-500' : 'text-slate-800'}`}>
                   {todo.title}
                 </h3>
                 {todo.content && (

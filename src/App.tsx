@@ -64,6 +64,7 @@ export default function DetectiveBoard() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [connectingSourceId, setConnectingSourceId] = useState<string | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [isDraggingNodeState, setIsDraggingNodeState] = useState(false);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const isDraggingCanvas = useRef(false);
@@ -119,6 +120,8 @@ export default function DetectiveBoard() {
       }
 
       if (isDraggingNode.current) {
+        if (!isDraggingNodeState) setIsDraggingNodeState(true);
+        
         const nodeId = isDraggingNode.current;
         const rect = canvasRef.current?.getBoundingClientRect();
         if (!rect) return;
@@ -135,42 +138,6 @@ export default function DetectiveBoard() {
         const nodeEl = document.getElementById(`node-${nodeId}`);
         if (nodeEl) {
           nodeEl.style.transform = `translate(${newX}px, ${newY}px)`;
-        }
-
-        const connectedEdges = edges.filter(ed => ed.from === nodeId || ed.to === nodeId);
-        const currentNode = nodes.find(n => n.id === nodeId);
-        
-        if (currentNode) {
-          connectedEdges.forEach(edge => {
-            const edgeEl = document.getElementById(`edge-${edge.id}`);
-            const edgeHitEl = document.getElementById(`edge-hit-${edge.id}`);
-            
-            if (edgeEl) {
-               let startX, startY, endX, endY;
-
-               if (edge.from === nodeId) {
-                 startX = newX + currentNode.width / 2;
-                 startY = newY + currentNode.height / 2;
-                 const targetNode = nodes.find(n => n.id === edge.to);
-                 if (targetNode) {
-                   endX = targetNode.x + targetNode.width / 2;
-                   endY = targetNode.y + targetNode.height / 2;
-                 } else { return; }
-               } else {
-                 endX = newX + currentNode.width / 2;
-                 endY = newY + currentNode.height / 2;
-                 const sourceNode = nodes.find(n => n.id === edge.from);
-                 if (sourceNode) {
-                   startX = sourceNode.x + sourceNode.width / 2;
-                   startY = sourceNode.y + sourceNode.height / 2;
-                 } else { return; }
-               }
-
-               const newPath = `M ${startX} ${startY} L ${endX} ${endY}`;
-               edgeEl.setAttribute('d', newPath);
-               if (edgeHitEl) edgeHitEl.setAttribute('d', newPath);
-            }
-          });
         }
       }
     };
@@ -190,6 +157,7 @@ export default function DetectiveBoard() {
         }));
         
         isDraggingNode.current = null;
+        setIsDraggingNodeState(false);
       }
       
       isResizingNode.current = null;
@@ -411,16 +379,18 @@ export default function DetectiveBoard() {
 
     if (connectingSourceId) {
       if (connectingSourceId !== node.id) {
-        const existingEdge = edges.find(ed => 
-          (ed.from === connectingSourceId && ed.to === node.id) ||
-          (ed.from === node.id && ed.to === connectingSourceId)
+        // 检查是否已经存在相同方向的edge
+        const existingSameDirectionEdge = edges.find(ed => 
+          ed.from === connectingSourceId && ed.to === node.id
         );
-        if (!existingEdge) {
+        // 如果不存在相同方向的edge，创建新edge
+        if (!existingSameDirectionEdge) {
           setEdges([...edges, { 
             id: generateId(), 
             workspaceId: currentWorkspaceId,
             from: connectingSourceId, 
-            to: node.id 
+            to: node.id,
+            direction: 'forward'
           }]);
         }
       }
@@ -626,6 +596,7 @@ export default function DetectiveBoard() {
         selectedId={selectedId}
         connectingSourceId={connectingSourceId}
         mousePos={mousePos}
+        isDraggingNode={isDraggingNodeState}
         setViewState={setViewState}
         handleWheel={handleWheel}
         handleMouseDown={handleMouseDown}
