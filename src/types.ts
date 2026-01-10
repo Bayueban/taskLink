@@ -11,6 +11,8 @@ export type Todo = {
   title: string;
   content: string;
   completed: boolean;
+  createdAt: string; // 格式：YY-MM-DD HH:mm
+  completedAt?: string; // 格式：YY-MM-DD HH:mm，可选
 };
 
 export type NodeType = 'text' | 'image';

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Node, Edge, Todo, ViewState } from '../types';
+import { MIN_SCALE, MAX_SCALE } from '../constants';
 import ZoomToolbar from './ZoomToolbar';
 import Minimap from './Minimap';
 import EdgeLayer from './EdgeLayer';
@@ -17,7 +18,6 @@ interface CanvasProps {
   mousePos: { x: number; y: number };
   isDraggingNode: boolean;
   setViewState: (state: ViewState | ((prev: ViewState) => ViewState)) => void;
-  handleWheel: (e: React.WheelEvent) => void;
   handleMouseDown: (e: React.MouseEvent) => void;
   handleDoubleClickCanvas: (e: React.MouseEvent) => void;
   handleNodeMouseDown: (e: React.MouseEvent, node: Node) => void;
@@ -43,7 +43,6 @@ export default function Canvas({
   mousePos,
   isDraggingNode,
   setViewState,
-  handleWheel,
   handleMouseDown,
   handleDoubleClickCanvas,
   handleNodeMouseDown,
@@ -123,6 +122,37 @@ export default function Canvas({
     }
   }, [selectedEdge]);
 
+  // 使用原生事件监听器处理滚轮事件以支持preventDefault
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const handleWheelEvent = (e: WheelEvent) => {
+      if (e.altKey) {
+        // Alt + 滚轮进行缩放
+        e.preventDefault();
+        const zoomSensitivity = 0.001;
+        const delta = -e.deltaY * zoomSensitivity;
+        const newScale = Math.min(Math.max(MIN_SCALE, viewState.scale + delta), MAX_SCALE);
+        setViewState({ ...viewState, scale: newScale });
+      } else {
+        // 普通滚轮进行平移
+        setViewState({
+          ...viewState,
+          x: viewState.x - e.deltaX,
+          y: viewState.y - e.deltaY
+        });
+      }
+    };
+
+    // 添加非被动的滚轮事件监听器
+    canvas.addEventListener('wheel', handleWheelEvent, { passive: false });
+    
+    return () => {
+      canvas.removeEventListener('wheel', handleWheelEvent);
+    };
+  }, [canvasRef, viewState, setViewState]);
+
   return (
     <div className="flex-1 relative bg-[#e2e8f0] overflow-hidden select-none">
       {/* Subtle Grid Pattern */}
@@ -155,7 +185,6 @@ export default function Canvas({
       <div 
         ref={canvasRef}
         className="w-full h-full cursor-grab active:cursor-grabbing"
-        onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onDoubleClick={handleDoubleClickCanvas}
       >

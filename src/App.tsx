@@ -1,57 +1,27 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Todo, Node, Edge, ViewState, Workspace } from './types';
-import { DEFAULT_VIEW_STATE, MIN_SCALE, MAX_SCALE, MIN_WIDTH, MAX_WIDTH, MIN_HEIGHT, MAX_HEIGHT, COLORS } from './constants';
 import TodoPanel from './components/TodoPanel';
 import Canvas from './components/Canvas';
+import { initWorkspaces, loadWorkspaceData } from './tool/workspace';
+import { getNodeCenterById } from './tool/interaction';
+import { useGlobalMouseEvents } from './tool/hooks/useGlobalMouseEvents';
+import { useWorkspaceSync } from './tool/hooks/useWorkspaceSync';
+import { useAutoSave } from './tool/hooks/useAutoSave';
+import { useKeyboardAndPaste } from './tool/hooks/useKeyboardAndPaste';
+import { todoActions } from './tool/actions/todoActions';
+import { nodeActions } from './tool/actions/nodeActions';
+import { workspaceActions } from './tool/actions/workspaceActions';
+import { mouseHandlers } from './tool/handlers/mouseHandlers';
+import { canvasHandlers } from './tool/handlers/canvasHandlers';
 
 export default function DetectiveBoard() {
-  const getStorage = <T,>(key: string, fallback: T): T => {
-    try {
-      const saved = localStorage.getItem(key);
-      return saved ? JSON.parse(saved) : fallback;
-    } catch (e) {
-      return fallback;
-    }
-  };
-
-  const generateId = () => Math.random().toString(36).substr(2, 9);
-
-  // 初始化工作区：如果没有工作区，创建一个默认的
-  const initWorkspaces = (): Workspace[] => {
-    const saved = getStorage<Workspace[]>('modern_workspaces', []);
-    if (saved.length === 0) {
-      const defaultWorkspace: Workspace = {
-        id: generateId(),
-        title: '默认工作区',
-        createdAt: Date.now()
-      };
-      return [defaultWorkspace];
-    }
-    return saved;
-  };
-
-  const [workspaces, setWorkspaces] = useState<Workspace[]>(initWorkspaces);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>(() => initWorkspaces());
   const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string>(() => {
     const saved = localStorage.getItem('modern_currentWorkspaceId');
     if (saved) return saved;
     const workspaces = initWorkspaces();
     return workspaces[0]?.id || '';
   });
-
-  // 加载当前工作区的数据
-  const loadWorkspaceData = (workspaceId: string) => {
-    const allTodos = getStorage<Todo[]>('modern_todos', []);
-    const allNodes = getStorage<Node[]>('modern_nodes', []);
-    const allEdges = getStorage<Edge[]>('modern_edges', []);
-    const allViewStates = getStorage<Record<string, ViewState>>('modern_viewStates', {});
-
-    return {
-      todos: allTodos.filter(t => t.workspaceId === workspaceId),
-      nodes: allNodes.filter(n => n.workspaceId === workspaceId),
-      edges: allEdges.filter(e => e.workspaceId === workspaceId),
-      viewState: allViewStates[workspaceId] || DEFAULT_VIEW_STATE
-    };
-  };
 
   const workspaceData = loadWorkspaceData(currentWorkspaceId);
   const [todos, setTodos] = useState<Todo[]>(workspaceData.todos);
@@ -81,463 +51,168 @@ export default function DetectiveBoard() {
     stateRef.current = { nodes, edges, viewState };
   }, [nodes, edges, viewState]);
 
-  // --- Global Event Listeners ---
-  useEffect(() => {
-    const handleGlobalMouseMove = (e: MouseEvent) => {
-      const { viewState } = stateRef.current;
+  // --- Hooks ---
+  useGlobalMouseEvents({
+    canvasRef,
+    connectingSourceId,
+    viewState,
+    isDraggingCanvas,
+    dragStartPos,
+    isDraggingNode,
+    isDraggingNodeState,
+    dragNodeOffset,
+    currentDragNodePos,
+    isResizingNode,
+    stateRef,
+    setMousePos,
+    setViewState,
+    setNodes,
+    setIsDraggingNodeState
+  });
 
-      const internalScreenToWorld = (sx: number, sy: number) => {
-        return {
-          x: (sx - viewState.x) / viewState.scale,
-          y: (sy - viewState.y) / viewState.scale
-        };
-      };
+  useWorkspaceSync({
+    currentWorkspaceId,
+    setTodos,
+    setNodes,
+    setEdges,
+    setViewState,
+    setSelectedId,
+    setConnectingSourceId
+  });
 
-      if (connectingSourceId) {
-        const rect = canvasRef.current?.getBoundingClientRect();
-        if (rect) {
-          const x = (e.clientX - rect.left - viewState.x) / viewState.scale;
-          const y = (e.clientY - rect.top - viewState.y) / viewState.scale;
-          setMousePos({ x, y });
-        }
-      }
+  useAutoSave({
+    currentWorkspaceId,
+    todos,
+    nodes,
+    edges,
+    viewState,
+    workspaces
+  });
 
-      if (isDraggingCanvas.current) {
-        const dx = e.clientX - dragStartPos.current.x;
-        const dy = e.clientY - dragStartPos.current.y;
-        setViewState(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }));
-        dragStartPos.current = { x: e.clientX, y: e.clientY };
-      }
-
-      if (isResizingNode.current) {
-        const { id, startX, startY, startWidth, startHeight } = isResizingNode.current;
-        const dx = (e.clientX - startX) / viewState.scale;
-        const dy = (e.clientY - startY) / viewState.scale;
-        const newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, startWidth + dx));
-        const newHeight = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, startHeight + dy));
-        setNodes(prev => prev.map(n => n.id === id ? { ...n, width: newWidth, height: newHeight } : n));
-        return;
-      }
-
-      if (isDraggingNode.current) {
-        if (!isDraggingNodeState) setIsDraggingNodeState(true);
-        
-        const nodeId = isDraggingNode.current;
-        const rect = canvasRef.current?.getBoundingClientRect();
-        if (!rect) return;
-
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-        const worldMouse = internalScreenToWorld(mouseX, mouseY);
-
-        const newX = worldMouse.x - dragNodeOffset.current.x;
-        const newY = worldMouse.y - dragNodeOffset.current.y;
-        
-        currentDragNodePos.current = { x: newX, y: newY };
-
-        const nodeEl = document.getElementById(`node-${nodeId}`);
-        if (nodeEl) {
-          nodeEl.style.transform = `translate(${newX}px, ${newY}px)`;
-        }
-      }
-    };
-
-    const handleGlobalMouseUp = () => {
-      isDraggingCanvas.current = false;
-      
-      if (isDraggingNode.current) {
-        const nodeId = isDraggingNode.current;
-        const finalPos = currentDragNodePos.current;
-        
-        setNodes(prev => prev.map(n => {
-          if (n.id === nodeId) {
-            return { ...n, x: finalPos.x, y: finalPos.y };
-          }
-          return n;
-        }));
-        
-        isDraggingNode.current = null;
-        setIsDraggingNodeState(false);
-      }
-      
-      isResizingNode.current = null;
-    };
-
-    window.addEventListener('mousemove', handleGlobalMouseMove);
-    window.addEventListener('mouseup', handleGlobalMouseUp);
-
-    return () => {
-      window.removeEventListener('mousemove', handleGlobalMouseMove);
-      window.removeEventListener('mouseup', handleGlobalMouseUp);
-    };
-  }, [connectingSourceId]); 
-
-  // --- 工作区切换时同步数据 ---
-  useEffect(() => {
-    if (!currentWorkspaceId) return;
-    const data = loadWorkspaceData(currentWorkspaceId);
-    setTodos(data.todos);
-    setNodes(data.nodes);
-    setEdges(data.edges);
-    setViewState(data.viewState);
-    setSelectedId(null);
-    setConnectingSourceId(null);
-  }, [currentWorkspaceId]);
-
-  // --- Auto-Save ---
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      try {
-        // 保存所有工作区的数据
-        const allTodos = getStorage<Todo[]>('modern_todos', []);
-        const allNodes = getStorage<Node[]>('modern_nodes', []);
-        const allEdges = getStorage<Edge[]>('modern_edges', []);
-        const allViewStates = getStorage<Record<string, ViewState>>('modern_viewStates', {});
-
-        // 更新当前工作区的数据
-        const otherTodos = allTodos.filter(t => t.workspaceId !== currentWorkspaceId);
-        const otherNodes = allNodes.filter(n => n.workspaceId !== currentWorkspaceId);
-        const otherEdges = allEdges.filter(e => e.workspaceId !== currentWorkspaceId);
-
-        localStorage.setItem('modern_todos', JSON.stringify([...otherTodos, ...todos]));
-        localStorage.setItem('modern_nodes', JSON.stringify([...otherNodes, ...nodes]));
-        localStorage.setItem('modern_edges', JSON.stringify([...otherEdges, ...edges]));
-        localStorage.setItem('modern_viewStates', JSON.stringify({ ...allViewStates, [currentWorkspaceId]: viewState }));
-        localStorage.setItem('modern_workspaces', JSON.stringify(workspaces));
-        localStorage.setItem('modern_currentWorkspaceId', currentWorkspaceId);
-      } catch (e) {}
-    }, 1000);
-    return () => clearTimeout(timeoutId);
-  }, [todos, nodes, edges, viewState, currentWorkspaceId, workspaces]);
+  useKeyboardAndPaste({
+    viewState,
+    selectedId,
+    connectingSourceId,
+    currentWorkspaceId,
+    onNodeCreated: (newNode) => setNodes(prev => [...prev, newNode]),
+    onSelect: setSelectedId,
+    onDelete: (id) => nodeActions.deleteNode(id, nodes, edges, todos, setNodes, setEdges, setTodos, setSelectedId, setConnectingSourceId),
+    onDeselect: () => setSelectedId(null),
+    onCancelConnect: () => setConnectingSourceId(null),
+    onViewStateChange: setViewState
+  });
 
   // --- Helpers ---
+  const getNodeCenter = (nodeId: string) => getNodeCenterById(nodes, nodeId);
 
-  const screenToWorld = (sx: number, sy: number) => {
-    return {
-      x: (sx - viewState.x) / viewState.scale,
-      y: (sy - viewState.y) / viewState.scale
-    };
-  };
-
-  const getNodeCenter = (nodeId: string) => {
-    const node = nodes.find(n => n.id === nodeId);
-    if (!node) return { x: 0, y: 0 };
-    return {
-      x: node.x + node.width / 2,
-      y: node.y + node.height / 2
-    };
-  };
-
-  // --- 工作区管理 ---
+  // --- 工作区管理 Actions ---
   const createWorkspace = (title: string) => {
-    const newWorkspace: Workspace = {
-      id: generateId(),
-      title: title.trim() || '新工作区',
-      createdAt: Date.now()
-    };
-    setWorkspaces([...workspaces, newWorkspace]);
-    setCurrentWorkspaceId(newWorkspace.id);
+    workspaceActions.createWorkspace(title, workspaces, setWorkspaces, setCurrentWorkspaceId);
   };
 
   const switchWorkspace = (workspaceId: string) => {
-    setCurrentWorkspaceId(workspaceId);
+    workspaceActions.switchWorkspace(workspaceId, setCurrentWorkspaceId);
   };
 
   const deleteWorkspace = (workspaceId: string) => {
-    if (workspaces.length <= 1) {
-      alert('至少需要保留一个工作区');
-      return;
-    }
-    
-    // 删除工作区的所有数据
-    const allTodos = getStorage<Todo[]>('modern_todos', []);
-    const allNodes = getStorage<Node[]>('modern_nodes', []);
-    const allEdges = getStorage<Edge[]>('modern_edges', []);
-    const allViewStates = getStorage<Record<string, ViewState>>('modern_viewStates', {});
-
-    const filteredTodos = allTodos.filter(t => t.workspaceId !== workspaceId);
-    const filteredNodes = allNodes.filter(n => n.workspaceId !== workspaceId);
-    const filteredEdges = allEdges.filter(e => e.workspaceId !== workspaceId);
-    const { [workspaceId]: _, ...filteredViewStates } = allViewStates;
-
-    localStorage.setItem('modern_todos', JSON.stringify(filteredTodos));
-    localStorage.setItem('modern_nodes', JSON.stringify(filteredNodes));
-    localStorage.setItem('modern_edges', JSON.stringify(filteredEdges));
-    localStorage.setItem('modern_viewStates', JSON.stringify(filteredViewStates));
-
-    const newWorkspaces = workspaces.filter(w => w.id !== workspaceId);
-    setWorkspaces(newWorkspaces);
-    
-    // 如果删除的是当前工作区，切换到第一个工作区
-    if (workspaceId === currentWorkspaceId) {
-      setCurrentWorkspaceId(newWorkspaces[0]?.id || '');
-    }
+    workspaceActions.deleteWorkspace(workspaceId, currentWorkspaceId, workspaces, setWorkspaces, setCurrentWorkspaceId);
   };
 
   const updateWorkspaceTitle = (workspaceId: string, newTitle: string) => {
-    setWorkspaces(prev => prev.map(w => 
-      w.id === workspaceId ? { ...w, title: newTitle.trim() || w.title } : w
-    ));
+    workspaceActions.updateWorkspaceTitle(workspaceId, newTitle, workspaces, setWorkspaces);
   };
 
-  // --- Actions ---
+  // --- Todo Actions ---
   const addTodo = () => {
-    if (!newTodoTitle.trim()) return;
-    const newId = generateId();
-    const newTodoItem: Todo = { 
-      id: newId,
-      workspaceId: currentWorkspaceId,
-      title: newTodoTitle, 
-      content: newTodoContent, 
-      completed: false 
-    };
-    setTodos([...todos, newTodoItem]);
-    setNewTodoTitle('');
-    setNewTodoContent('');
-
-    // Place new nodes visible in the center of current view
-    const centerX = -viewState.x / viewState.scale + (window.innerWidth * 0.75) / 2 / viewState.scale;
-    const centerY = -viewState.y / viewState.scale + (window.innerHeight) / 2 / viewState.scale;
-    
-    const newNode: Node = {
-      id: newId,
-      workspaceId: currentWorkspaceId,
-      type: 'text',
-      x: centerX - 130 + (nodes.length * 20),
-      y: centerY - 90 + (nodes.length * 20),
-      title: newTodoTitle,
-      content: newTodoContent,
-      width: 260,
-      height: 180,
-      color: COLORS[0]
-    };
-    setNodes(prev => [...prev, newNode]);
+    todoActions.addTodo(
+      newTodoTitle,
+      newTodoContent,
+      currentWorkspaceId,
+      viewState,
+      nodes.length,
+      todos,
+      nodes,
+      setTodos,
+      setNodes,
+      setNewTodoTitle,
+      setNewTodoContent
+    );
   };
 
   const toggleTodo = (id: string) => {
-    setTodos(todos.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+    todoActions.toggleTodo(id, todos, setTodos);
   };
 
   const deleteTodo = (id: string) => {
-    setTodos(todos.filter(t => t.id !== id));
-    deleteNode(id);
+    todoActions.deleteTodo(id, todos, nodes, edges, setTodos, setNodes, setEdges, setSelectedId, setConnectingSourceId);
   };
 
+  // --- Node Actions ---
   const deleteNode = (id: string) => {
-    setNodes(prev => prev.filter(n => n.id !== id));
-    setEdges(prev => prev.filter(e => e.from !== id && e.to !== id));
-    setTodos(prev => prev.filter(t => t.id !== id));
-    if (selectedId === id) setSelectedId(null);
-    if (connectingSourceId === id) setConnectingSourceId(null);
+    nodeActions.deleteNode(id, nodes, edges, todos, setNodes, setEdges, setTodos, setSelectedId, setConnectingSourceId);
   };
 
   const updateNodeTitle = (id: string, newTitle: string) => {
-    setNodes(prev => prev.map(n => n.id === id ? { ...n, title: newTitle } : n));
-    setTodos(prev => prev.map(t => t.id === id ? { ...t, title: newTitle } : t));
+    nodeActions.updateNodeTitle(id, newTitle, nodes, todos, setNodes, setTodos);
   };
 
   const updateNodeContent = (id: string, newContent: string) => {
-    setNodes(prev => prev.map(n => n.id === id ? { ...n, content: newContent } : n));
-    setTodos(prev => prev.map(t => t.id === id ? { ...t, content: newContent } : t));
+    nodeActions.updateNodeContent(id, newContent, nodes, todos, setNodes, setTodos);
   };
 
   const updateNodeColor = (id: string, newColor: string) => {
-    setNodes(prev => prev.map(n => n.id === id ? { ...n, color: newColor } : n));
+    nodeActions.updateNodeColor(id, newColor, nodes, setNodes);
   };
 
-  // --- Interaction Handlers (Local) ---
-  const handleWheel = (e: React.WheelEvent) => {
-    // 修改为 alt + 滚轮进行缩放
-    if (e.altKey) {
-      e.preventDefault();
-      const zoomSensitivity = 0.001;
-      const delta = -e.deltaY * zoomSensitivity;
-      const newScale = Math.min(Math.max(MIN_SCALE, viewState.scale + delta), MAX_SCALE);
-      setViewState(prev => ({ ...prev, scale: newScale }));
-    } else {
-      setViewState(prev => ({
-        ...prev,
-        x: prev.x - e.deltaX,
-        y: prev.y - e.deltaY
-      }));
-    }
-  };
-
+  // --- Interaction Handlers ---
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.target === canvasRef.current || (e.target as HTMLElement).id === 'canvas-bg') {
-      isDraggingCanvas.current = true;
-      dragStartPos.current = { x: e.clientX, y: e.clientY };
-      setSelectedId(null);
-      setConnectingSourceId(null);
-    }
+    mouseHandlers.handleMouseDown(e, canvasRef, isDraggingCanvas, dragStartPos, setSelectedId, setConnectingSourceId);
   };
 
   const handleNodeMouseDown = (e: React.MouseEvent, node: Node) => {
-    e.stopPropagation();
-    const target = e.target as HTMLElement;
-    const isInput = ['INPUT', 'TEXTAREA'].includes(target.tagName);
-
-    if (connectingSourceId) {
-      if (connectingSourceId !== node.id) {
-        // 检查是否已经存在相同方向的edge
-        const existingSameDirectionEdge = edges.find(ed => 
-          ed.from === connectingSourceId && ed.to === node.id
-        );
-        // 如果不存在相同方向的edge，创建新edge
-        if (!existingSameDirectionEdge) {
-          setEdges([...edges, { 
-            id: generateId(), 
-            workspaceId: currentWorkspaceId,
-            from: connectingSourceId, 
-            to: node.id,
-            direction: 'forward'
-          }]);
-        }
-      }
-      setConnectingSourceId(null);
-      return;
-    }
-
-    setSelectedId(node.id);
-
-    if (!isInput) {
-      isDraggingNode.current = node.id;
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (rect) {
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-        const worldMouse = screenToWorld(mouseX, mouseY);
-        dragNodeOffset.current = {
-          x: worldMouse.x - node.x,
-          y: worldMouse.y - node.y
-        };
-        currentDragNodePos.current = { x: node.x, y: node.y };
-      }
-    }
+    mouseHandlers.handleNodeMouseDown(
+      e,
+      node,
+      connectingSourceId,
+      edges,
+      currentWorkspaceId,
+      viewState,
+      canvasRef,
+      isDraggingNode,
+      dragNodeOffset,
+      currentDragNodePos,
+      setEdges,
+      setConnectingSourceId,
+      setSelectedId
+    );
   };
 
   const handleResizeMouseDown = (e: React.MouseEvent, node: Node) => {
-    e.stopPropagation();
-    e.preventDefault();
-    isResizingNode.current = {
-      id: node.id,
-      startX: e.clientX,
-      startY: e.clientY,
-      startWidth: node.width,
-      startHeight: node.height
-    };
+    mouseHandlers.handleResizeMouseDown(e, node, isResizingNode);
   };
 
   const startConnecting = (e: React.MouseEvent, nodeId: string) => {
-    e.stopPropagation();
-    setConnectingSourceId(nodeId);
-    setMousePos(getNodeCenter(nodeId));
+    canvasHandlers.startConnecting(e, nodeId, nodes, setConnectingSourceId, setMousePos);
   };
 
   const resetNodeSize = (e: React.MouseEvent, nodeId: string) => {
     e.stopPropagation();
-    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, width: 260, height: 180 } : n));
+    nodeActions.resetNodeSize(nodeId, nodes, setNodes);
   };
 
   const handleDoubleClickCanvas = (e: React.MouseEvent) => {
-    if (e.target === canvasRef.current || (e.target as HTMLElement).id === 'canvas-bg') {
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
-      const { x, y } = screenToWorld(mouseX, mouseY);
-      
-      const newId = generateId();
-      const newNode: Node = {
-        id: newId,
-        workspaceId: currentWorkspaceId,
-        type: 'text',
-        x: x - 130,
-        y: y - 90,
-        title: '新想法',
-        content: '',
-        width: 260,
-        height: 180,
-        color: COLORS[0]
-      };
-      
-      setNodes([...nodes, newNode]);
-      setTodos([...todos, { 
-        id: newId, 
-        workspaceId: currentWorkspaceId,
-        title: newNode.title!, 
-        content: newNode.content, 
-        completed: false 
-      }]);
-      setSelectedId(newId);
-    }
+    canvasHandlers.handleDoubleClickCanvas(
+      e,
+      canvasRef,
+      viewState,
+      currentWorkspaceId,
+      nodes,
+      todos,
+      setNodes,
+      setTodos,
+      setSelectedId
+    );
   };
-
-  // --- Paste & Keys ---
-  useEffect(() => {
-    const handlePaste = (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf('image') !== -1) {
-          const blob = items[i].getAsFile();
-          if (!blob) continue;
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            const base64 = event.target?.result as string;
-            const centerX = -viewState.x / viewState.scale + (window.innerWidth * 0.75) / 2 / viewState.scale;
-            const centerY = -viewState.y / viewState.scale + (window.innerHeight) / 2 / viewState.scale;
-            const newNode: Node = {
-              id: generateId(),
-              workspaceId: currentWorkspaceId,
-              type: 'image',
-              x: centerX - 100,
-              y: centerY - 100,
-              content: base64,
-              width: 200,
-              height: 200
-            };
-            setNodes(prev => [...prev, newNode]);
-            setSelectedId(newNode.id);
-          };
-          reader.readAsDataURL(blob);
-        }
-      }
-    };
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedId && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
-          deleteNode(selectedId);
-        }
-      }
-      if (e.key === 'Escape') {
-        setSelectedId(null);
-        setConnectingSourceId(null);
-      }
-      // 修改为 alt + + 或 alt + - 进行缩放
-      if (e.altKey) {
-        if (e.key === '=' || e.key === '+') {
-          e.preventDefault();
-          setViewState(prev => ({ ...prev, scale: Math.min(prev.scale + 0.1, MAX_SCALE) }));
-        } else if (e.key === '-') {
-          e.preventDefault();
-          setViewState(prev => ({ ...prev, scale: Math.max(prev.scale - 0.1, MIN_SCALE) }));
-        } else if (e.key === '0') {
-           e.preventDefault();
-           setViewState(prev => ({ ...prev, scale: 1 }));
-        }
-      }
-    };
-
-    window.addEventListener('paste', handlePaste);
-    window.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      window.removeEventListener('paste', handlePaste);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [viewState, selectedId, connectingSourceId]);
 
   return (
     <div className="flex h-screen w-full bg-[#f8fafc] text-slate-800 font-sans overflow-hidden">
@@ -598,7 +273,6 @@ export default function DetectiveBoard() {
         mousePos={mousePos}
         isDraggingNode={isDraggingNodeState}
         setViewState={setViewState}
-        handleWheel={handleWheel}
         handleMouseDown={handleMouseDown}
         handleDoubleClickCanvas={handleDoubleClickCanvas}
         handleNodeMouseDown={handleNodeMouseDown}

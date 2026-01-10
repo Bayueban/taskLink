@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, Check, Layout, Folder, FolderOpen, Edit2, X } from 'lucide-react';
+import { Plus, Trash2, Check, Layout, Folder, FolderOpen, Edit2, X, Calendar, CheckCircle2 } from 'lucide-react';
 import type { Todo, Node, ViewState, Workspace } from '../types';
 
 interface TodoPanelProps {
@@ -49,6 +49,7 @@ export default function TodoPanel({
   const [editingTitle, setEditingTitle] = useState('');
   const [showNewWorkspaceInput, setShowNewWorkspaceInput] = useState(false);
   const [newWorkspaceTitle, setNewWorkspaceTitle] = useState('');
+  const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending');
 
   const handleStartEdit = (workspace: Workspace) => {
     setEditingWorkspaceId(workspace.id);
@@ -277,59 +278,183 @@ export default function TodoPanel({
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
-        {todos.map(todo => (
-          <div 
-            key={todo.id} 
-            onClick={() => {
-              const node = nodes.find(n => n.id === todo.id);
-              if (node) {
-                 setSelectedId(node.id);
-                 const w = window.innerWidth * 0.75; 
-                 const h = window.innerHeight;
-                 setViewState({
-                   x: -node.x * viewState.scale + w/2 - (node.width*viewState.scale)/2,
-                   y: -node.y * viewState.scale + h/2 - (node.height*viewState.scale)/2,
-                   scale: viewState.scale
-                 });
-              }
-            }}
-            className={`group relative p-4 rounded-xl border transition-all cursor-pointer ${
-              selectedId === todo.id 
-                ? 'bg-indigo-50/50 border-indigo-200 shadow-sm' 
-                : 'bg-white border-slate-100 hover:border-slate-300 hover:shadow-sm'
-            } ${todo.completed ? 'opacity-60 grayscale-[0.5]' : ''}`}
+      {/* Tab 切换栏 */}
+      <div className="border-b border-slate-200 bg-white px-4">
+        <div className="flex gap-1">
+          <button
+            onClick={() => setActiveTab('pending')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-all relative ${
+              activeTab === 'pending'
+                ? 'text-indigo-600'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
           >
-            <div className="flex items-start gap-3">
-              <button 
-                onClick={(e) => { e.stopPropagation(); toggleTodo(todo.id); }}
-                className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center transition-all shrink-0 ${
-                  todo.completed 
-                    ? 'bg-indigo-500 border-indigo-500 text-white' 
-                    : 'border-slate-300 text-transparent hover:border-indigo-400'
-                }`}
-              >
-                <Check className="w-3.5 h-3.5" />
-              </button>
-              <div className="flex-1 min-w-0">
-                <h3 className={`text-sm font-semibold leading-tight break-words ${todo.completed ? 'line-through text-slate-500' : 'text-slate-800'}`}>
-                  {todo.title}
-                </h3>
-                {todo.content && (
-                  <p className="text-xs text-slate-500 mt-1.5 line-clamp-2 leading-relaxed">
-                    {todo.content}
-                  </p>
-                )}
+            <Calendar className="w-4 h-4" />
+            <span>待完成</span>
+            <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-indigo-100 text-indigo-700">
+              {todos.filter(t => !t.completed).length}
+            </span>
+            {activeTab === 'pending' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600"></div>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('completed')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-all relative ${
+              activeTab === 'completed'
+                ? 'text-green-600'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            <span>已完成</span>
+            <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">
+              {todos.filter(t => t.completed).length}
+            </span>
+            {activeTab === 'completed' && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-green-600"></div>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* 任务列表区域 */}
+      <div className="flex-1 overflow-y-auto p-4">
+        {activeTab === 'pending' ? (
+          /* 待完成任务列表 */
+          <div className="space-y-2.5">
+            {todos.filter(todo => !todo.completed).length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                <Calendar className="w-12 h-12 mb-3 opacity-30" />
+                <p className="text-sm">暂无待完成任务</p>
               </div>
-            </div>
-            <button 
-              onClick={(e) => { e.stopPropagation(); deleteTodo(todo.id); }}
-              className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all p-1 hover:bg-red-50 rounded"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            ) : (
+              todos.filter(todo => !todo.completed).map(todo => (
+                <div 
+                  key={todo.id} 
+                  onClick={() => {
+                    const node = nodes.find(n => n.id === todo.id);
+                    if (node) {
+                       setSelectedId(node.id);
+                       const w = window.innerWidth * 0.75; 
+                       const h = window.innerHeight;
+                       setViewState({
+                         x: -node.x * viewState.scale + w/2 - (node.width*viewState.scale)/2,
+                         y: -node.y * viewState.scale + h/2 - (node.height*viewState.scale)/2,
+                         scale: viewState.scale
+                       });
+                    }
+                  }}
+                  className={`group relative p-4 rounded-xl border transition-all cursor-pointer ${
+                    selectedId === todo.id 
+                      ? 'bg-indigo-50/50 border-indigo-200 shadow-sm' 
+                      : 'bg-white border-slate-100 hover:border-slate-300 hover:shadow-sm'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); toggleTodo(todo.id); }}
+                      className="mt-0.5 w-5 h-5 rounded-md border border-slate-300 text-transparent hover:border-indigo-400 flex items-center justify-center transition-all shrink-0"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-semibold leading-tight break-words text-slate-800">
+                        {todo.title}
+                      </h3>
+                      {todo.content && (
+                        <p className="text-xs text-slate-500 mt-1.5 line-clamp-2 leading-relaxed">
+                          {todo.content}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-1 mt-2 text-[10px] text-slate-400">
+                        <Calendar className="w-3 h-3" />
+                        <span>{todo.createdAt}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); deleteTodo(todo.id); }}
+                    className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all p-1 hover:bg-red-50 rounded"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))
+            )}
           </div>
-        ))}
+        ) : (
+          /* 已完成任务列表 */
+          <div className="space-y-2.5">
+            {todos.filter(todo => todo.completed).length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                <CheckCircle2 className="w-12 h-12 mb-3 opacity-30" />
+                <p className="text-sm">暂无已完成任务</p>
+              </div>
+            ) : (
+              todos.filter(todo => todo.completed).map(todo => (
+                <div 
+                  key={todo.id} 
+                  onClick={() => {
+                    const node = nodes.find(n => n.id === todo.id);
+                    if (node) {
+                       setSelectedId(node.id);
+                       const w = window.innerWidth * 0.75; 
+                       const h = window.innerHeight;
+                       setViewState({
+                         x: -node.x * viewState.scale + w/2 - (node.width*viewState.scale)/2,
+                         y: -node.y * viewState.scale + h/2 - (node.height*viewState.scale)/2,
+                         scale: viewState.scale
+                       });
+                    }
+                  }}
+                  className={`group relative p-4 rounded-xl border transition-all cursor-pointer opacity-60 ${
+                    selectedId === todo.id 
+                      ? 'bg-green-50/50 border-green-200 shadow-sm' 
+                      : 'bg-white border-slate-100 hover:border-slate-300 hover:shadow-sm'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); toggleTodo(todo.id); }}
+                      className="mt-0.5 w-5 h-5 rounded-md border bg-green-500 border-green-500 text-white flex items-center justify-center transition-all shrink-0"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-semibold leading-tight break-words line-through text-slate-500">
+                        {todo.title}
+                      </h3>
+                      {todo.content && (
+                        <p className="text-xs text-slate-500 mt-1.5 line-clamp-2 leading-relaxed">
+                          {todo.content}
+                        </p>
+                      )}
+                      <div className="flex flex-col gap-1 mt-2 text-[10px] text-slate-400">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          <span>创建: {todo.createdAt}</span>
+                        </div>
+                        {todo.completedAt && (
+                          <div className="flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-green-600" />
+                            <span>完成: {todo.completedAt}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); deleteTodo(todo.id); }}
+                    className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all p-1 hover:bg-red-50 rounded"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
