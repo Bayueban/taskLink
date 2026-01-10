@@ -12,7 +12,8 @@ import { db } from './db';
  */
 export const initWorkspaces = async (): Promise<Workspace[]> => {
   try {
-    const saved = await db.workspaces.toArray();
+    // 按照 createdAt 升序排序，保持创建的先后顺序
+    const saved = await db.workspaces.orderBy('createdAt').toArray();
     if (saved.length === 0) {
       const defaultWorkspace: Workspace = {
         id: generateId(),
