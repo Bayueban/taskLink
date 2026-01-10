@@ -27,12 +27,17 @@ export const useWorkspaceSync = ({
 }: UseWorkspaceSyncProps) => {
   useEffect(() => {
     if (!currentWorkspaceId) return;
-    const data = loadWorkspaceData(currentWorkspaceId);
-    setTodos(data.todos);
-    setNodes(data.nodes);
-    setEdges(data.edges);
-    setViewState(data.viewState);
-    setSelectedId(null);
-    setConnectingSourceId(null);
+    
+    const loadData = async () => {
+      const data = await loadWorkspaceData(currentWorkspaceId);
+      setTodos(data.todos);
+      setNodes(data.nodes);
+      setEdges(data.edges);
+      setViewState(data.viewState);
+      setSelectedId(null);
+      setConnectingSourceId(null);
+    };
+
+    loadData();
   }, [currentWorkspaceId, setTodos, setNodes, setEdges, setViewState, setSelectedId, setConnectingSourceId]);
 };

@@ -63,6 +63,19 @@ export const resetNodeSize = (nodes: Node[], id: string): Node[] => {
 };
 
 /**
+ * 获取当前日期时间（格式：YY-MM-DD HH:mm）
+ */
+const getCurrentDate = (): string => {
+  const now = new Date();
+  const year = String(now.getFullYear()).slice(-2);
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hours}:${minutes}`;
+};
+
+/**
  * 通过双击画布创建新 Node
  */
 export const createNodeFromDoubleClick = (
@@ -92,7 +105,8 @@ export const createNodeFromDoubleClick = (
     workspaceId,
     title: node.title!,
     content: node.content,
-    completed: false
+    completed: false,
+    createdAt: getCurrentDate()
   };
 
   return { node, todo };

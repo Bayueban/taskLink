@@ -5,7 +5,6 @@ import { RefObject } from 'react';
 import type { Node, Edge, ViewState } from '../../types';
 import { screenToWorld } from '../coordinate';
 import { generateId } from '../storage';
-import type { Edge } from '../../types';
 
 interface MouseHandlers {
   handleMouseDown: (

@@ -21,7 +21,7 @@ interface WorkspaceActions {
     workspaces: Workspace[],
     setWorkspaces: React.Dispatch<React.SetStateAction<Workspace[]>>,
     setCurrentWorkspaceId: React.Dispatch<React.SetStateAction<string>>
-  ) => void;
+  ) => Promise<void>;
   updateWorkspaceTitle: (
     workspaceId: string,
     newTitle: string,
@@ -41,23 +41,28 @@ export const workspaceActions: WorkspaceActions = {
     setCurrentWorkspaceId(workspaceId);
   },
 
-  deleteWorkspace: (workspaceId, currentWorkspaceId, workspaces, setWorkspaces, setCurrentWorkspaceId) => {
+  deleteWorkspace: async (workspaceId, currentWorkspaceId, workspaces, setWorkspaces, setCurrentWorkspaceId) => {
     if (workspaces.length <= 1) {
       alert('至少需要保留一个工作区');
       return;
     }
     
-    deleteWorkspaceData(workspaceId);
-    const newWorkspaces = workspaces.filter(w => w.id !== workspaceId);
-    setWorkspaces(newWorkspaces);
-    
-    // 如果删除的是当前工作区，切换到第一个工作区
-    if (workspaceId === currentWorkspaceId) {
-      setCurrentWorkspaceId(newWorkspaces[0]?.id || '');
+    try {
+      await deleteWorkspaceData(workspaceId);
+      const newWorkspaces = workspaces.filter(w => w.id !== workspaceId);
+      setWorkspaces(newWorkspaces);
+      
+      // 如果删除的是当前工作区，切换到第一个工作区
+      if (workspaceId === currentWorkspaceId) {
+        setCurrentWorkspaceId(newWorkspaces[0]?.id || '');
+      }
+    } catch (error) {
+      console.error('Failed to delete workspace:', error);
+      alert('删除工作区失败，请重试');
     }
   },
 
-  updateWorkspaceTitle: (workspaceId, newTitle, workspaces, setWorkspaces) => {
+  updateWorkspaceTitle: (workspaceId, newTitle, _workspaces, setWorkspaces) => {
     setWorkspaces(prev => prev.map(w => 
       w.id === workspaceId ? { ...w, title: newTitle.trim() || w.title } : w
     ));

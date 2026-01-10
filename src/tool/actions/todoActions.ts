@@ -34,7 +34,7 @@ interface TodoActions {
 }
 
 export const todoActions: TodoActions = {
-  addTodo: (title, content, workspaceId, viewState, nodesCount, todos, nodes, setTodos, setNodes, setNewTodoTitle, setNewTodoContent) => {
+  addTodo: (title, content, workspaceId, viewState, nodesCount, todos, _nodes, setTodos, setNodes, setNewTodoTitle, setNewTodoContent) => {
     if (!title.trim()) return;
     const { todo, node } = createTodoAndNode(title, content, workspaceId, viewState, nodesCount);
     setTodos([...todos, todo]);

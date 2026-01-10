@@ -42,7 +42,7 @@ export const useGlobalMouseEvents = ({
 }: UseGlobalMouseEventsProps) => {
   useEffect(() => {
     const handleGlobalMouseMove = (e: MouseEvent) => {
-      const { viewState, nodes } = stateRef.current;
+      const { viewState } = stateRef.current;
 
       // 连接模式下的鼠标位置更新
       if (connectingSourceId) {

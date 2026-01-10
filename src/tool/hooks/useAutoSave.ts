@@ -1,10 +1,11 @@
 /**
  * 自动保存 Hook
- * 当数据变化时，自动保存到 localStorage
+ * 当数据变化时，自动保存到 Dexie (IndexedDB)
  */
 import { useEffect } from 'react';
 import type { Todo, Node, Edge, ViewState, Workspace } from '../../types';
 import { saveWorkspaceData } from '../workspace';
+import { setStorage } from '../storage';
 
 interface UseAutoSaveProps {
   currentWorkspaceId: string;
@@ -24,10 +25,17 @@ export const useAutoSave = ({
   workspaces
 }: UseAutoSaveProps) => {
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      saveWorkspaceData(currentWorkspaceId, todos, nodes, edges, viewState, workspaces);
-      localStorage.setItem('modern_currentWorkspaceId', currentWorkspaceId);
+    if (!currentWorkspaceId) return;
+    
+    const timeoutId = setTimeout(async () => {
+      try {
+        await saveWorkspaceData(currentWorkspaceId, todos, nodes, edges, viewState, workspaces);
+        await setStorage('currentWorkspaceId', currentWorkspaceId);
+      } catch (error) {
+        console.error('Failed to auto-save:', error);
+      }
     }, 1000);
+    
     return () => clearTimeout(timeoutId);
   }, [currentWorkspaceId, todos, nodes, edges, viewState, workspaces]);
 };

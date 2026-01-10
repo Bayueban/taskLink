@@ -43,7 +43,7 @@ export const handlePaste = (
 export const handleKeyDown = (
   e: KeyboardEvent,
   selectedId: string | null,
-  connectingSourceId: string | null,
+  _connectingSourceId: string | null,
   viewState: ViewState,
   onDelete: (id: string) => void,
   onDeselect: () => void,

@@ -129,7 +129,7 @@ export default function NodeCard({
             maxLength={50}
             rows={1}
             className="w-full bg-transparent text-slate-900 font-bold text-lg mb-2 outline-none placeholder:text-slate-300 resize-none overflow-hidden break-words"
-            placeholder="Untitled（最多50字符）"
+            placeholder="输入标题（最多50字符）"
             style={{ 
               wordWrap: 'break-word', 
               whiteSpace: 'pre-wrap',

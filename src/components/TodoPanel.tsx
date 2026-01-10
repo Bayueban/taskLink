@@ -1,6 +1,8 @@
-import { useState } from 'react';
-import { Plus, Trash2, Check, Layout, Folder, FolderOpen, Edit2, X, Calendar, CheckCircle2 } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Plus, Trash2, Check, Layout, Folder, FolderOpen, Edit2, X, Calendar, CheckCircle2, Download, Upload, Settings, Database } from 'lucide-react';
 import type { Todo, Node, ViewState, Workspace } from '../types';
+import { exportData, importData, mergeImportData, exportWorkspace } from '../tool/importExport';
+import { getStorageEstimate } from '../tool/db';
 
 interface TodoPanelProps {
   todos: Todo[];
@@ -50,6 +52,9 @@ export default function TodoPanel({
   const [showNewWorkspaceInput, setShowNewWorkspaceInput] = useState(false);
   const [newWorkspaceTitle, setNewWorkspaceTitle] = useState('');
   const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending');
+  const [showSettings, setShowSettings] = useState(false);
+  const [storageInfo, setStorageInfo] = useState<{ usageInMB: number; quotaInMB: number; percentage: number } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleStartEdit = (workspace: Workspace) => {
     setEditingWorkspaceId(workspace.id);
@@ -77,18 +82,181 @@ export default function TodoPanel({
     }
   };
 
+  // 导出所有数据
+  const handleExportAll = async () => {
+    try {
+      await exportData();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '导出失败');
+    }
+  };
+
+  // 导出当前工作区
+  const handleExportWorkspace = async () => {
+    try {
+      await exportWorkspace(currentWorkspaceId);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '导出失败');
+    }
+  };
+
+  // 导入数据（覆盖）
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      await importData(file);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '导入失败');
+    }
+
+    // 清空文件输入
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // 合并导入数据
+  const handleMergeImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      await mergeImportData(file);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : '导入失败');
+    }
+
+    // 清空文件输入
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // 加载存储信息
+  const loadStorageInfo = async () => {
+    const info = await getStorageEstimate();
+    if (info) {
+      setStorageInfo({
+        usageInMB: info.usageInMB,
+        quotaInMB: info.quotaInMB,
+        percentage: info.percentage
+      });
+    }
+  };
+
+  // 切换设置面板
+  const toggleSettings = () => {
+    if (!showSettings) {
+      loadStorageInfo();
+    }
+    setShowSettings(!showSettings);
+  };
+
   return (
     <div className="w-80 border-r border-slate-200 bg-white flex flex-col z-20 shadow-sm">
       <div className="p-6 border-b border-slate-100">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="bg-indigo-100 p-2 rounded-lg text-indigo-600">
-            <Layout className="w-5 h-5" />
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-indigo-100 p-2 rounded-lg text-indigo-600">
+              <Layout className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-slate-900 tracking-tight">关联空间</h1>
+              <p className="text-xs text-slate-500 font-medium">自动保存中...</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-lg font-bold text-slate-900 tracking-tight">关联空间</h1>
-            <p className="text-xs text-slate-500 font-medium">自动保存中...</p>
-          </div>
+          <button
+            onClick={toggleSettings}
+            className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-600 hover:text-indigo-600"
+            title="设置"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
         </div>
+
+        {/* 设置面板 */}
+        {showSettings && (
+          <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
+              <Database className="w-4 h-4" />
+              <span>数据管理</span>
+            </div>
+
+            {/* 存储信息 */}
+            {storageInfo && (
+              <div className="text-xs text-slate-600 space-y-1 pb-3 border-b border-slate-200">
+                <div className="flex justify-between">
+                  <span>存储使用:</span>
+                  <span className="font-medium">{storageInfo.usageInMB} MB / {storageInfo.quotaInMB} MB</span>
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-1.5">
+                  <div
+                    className="bg-indigo-600 h-1.5 rounded-full"
+                    style={{ width: `${Math.min(storageInfo.percentage, 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+            )}
+
+            {/* 导出功能 */}
+            <div className="space-y-2">
+              <button
+                onClick={handleExportAll}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                导出所有数据
+              </button>
+              <button
+                onClick={handleExportWorkspace}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                导出当前工作区
+              </button>
+            </div>
+
+            {/* 导入功能 */}
+            <div className="space-y-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleImport}
+                className="hidden"
+                id="import-file"
+              />
+              <label
+                htmlFor="import-file"
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors cursor-pointer"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                导入数据（覆盖）
+              </label>
+              
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleMergeImport}
+                className="hidden"
+                id="merge-import-file"
+              />
+              <label
+                htmlFor="merge-import-file"
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors cursor-pointer"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                导入数据（合并）
+              </label>
+            </div>
+
+            <p className="text-[10px] text-slate-500 pt-2 border-t border-slate-200">
+              💡 提示：导出数据可作为备份，导入时可选择覆盖或合并现有数据
+            </p>
+          </div>
+        )}
 
         {/* 工作区选择器 */}
         <div className="space-y-2">

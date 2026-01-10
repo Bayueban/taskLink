@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import type { Todo, Node, Edge, ViewState, Workspace } from './types';
 import TodoPanel from './components/TodoPanel';
 import Canvas from './components/Canvas';
-import { initWorkspaces, loadWorkspaceData } from './tool/workspace';
+import { initWorkspaces, loadWorkspaceData, getCurrentWorkspaceId } from './tool/workspace';
 import { getNodeCenterById } from './tool/interaction';
 import { useGlobalMouseEvents } from './tool/hooks/useGlobalMouseEvents';
 import { useWorkspaceSync } from './tool/hooks/useWorkspaceSync';
@@ -13,23 +13,51 @@ import { nodeActions } from './tool/actions/nodeActions';
 import { workspaceActions } from './tool/actions/workspaceActions';
 import { mouseHandlers } from './tool/handlers/mouseHandlers';
 import { canvasHandlers } from './tool/handlers/canvasHandlers';
+import { initDatabase } from './tool/db';
+import { DEFAULT_VIEW_STATE } from './constants';
 
 export default function DetectiveBoard() {
-  const [workspaces, setWorkspaces] = useState<Workspace[]>(() => initWorkspaces());
-  const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string>(() => {
-    const saved = localStorage.getItem('modern_currentWorkspaceId');
-    if (saved) return saved;
-    const workspaces = initWorkspaces();
-    return workspaces[0]?.id || '';
-  });
-
-  const workspaceData = loadWorkspaceData(currentWorkspaceId);
-  const [todos, setTodos] = useState<Todo[]>(workspaceData.todos);
+  const [isLoading, setIsLoading] = useState(true);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string>('');
+  const [todos, setTodos] = useState<Todo[]>([]);
   const [newTodoTitle, setNewTodoTitle] = useState('');
   const [newTodoContent, setNewTodoContent] = useState('');
-  const [nodes, setNodes] = useState<Node[]>(workspaceData.nodes);
-  const [edges, setEdges] = useState<Edge[]>(workspaceData.edges);
-  const [viewState, setViewState] = useState<ViewState>(workspaceData.viewState);
+  const [nodes, setNodes] = useState<Node[]>([]);
+  const [edges, setEdges] = useState<Edge[]>([]);
+  const [viewState, setViewState] = useState<ViewState>(DEFAULT_VIEW_STATE);
+
+  // 初始化数据库和加载数据
+  useEffect(() => {
+    const initApp = async () => {
+      try {
+        // 初始化数据库并执行迁移
+        await initDatabase();
+
+        // 初始化工作区
+        const initialWorkspaces = await initWorkspaces();
+        setWorkspaces(initialWorkspaces);
+
+        // 获取当前工作区 ID
+        const workspaceId = await getCurrentWorkspaceId(initialWorkspaces);
+        setCurrentWorkspaceId(workspaceId);
+
+        // 加载工作区数据
+        const workspaceData = await loadWorkspaceData(workspaceId);
+        setTodos(workspaceData.todos);
+        setNodes(workspaceData.nodes);
+        setEdges(workspaceData.edges);
+        setViewState(workspaceData.viewState);
+
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Failed to initialize app:', error);
+        setIsLoading(false);
+      }
+    };
+
+    initApp();
+  }, []);
   
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [connectingSourceId, setConnectingSourceId] = useState<string | null>(null);
@@ -213,6 +241,18 @@ export default function DetectiveBoard() {
       setSelectedId
     );
   };
+
+  // 显示加载状态
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-full bg-[#f8fafc] items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-solid border-indigo-600 border-r-transparent"></div>
+          <p className="mt-4 text-slate-600 font-medium">加载中...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen w-full bg-[#f8fafc] text-slate-800 font-sans overflow-hidden">
