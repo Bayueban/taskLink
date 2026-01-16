@@ -6,6 +6,7 @@ import Minimap from './Minimap';
 import EdgeLayer from './EdgeLayer';
 import NodeCard from './NodeCard';
 import EdgeToolbar from './EdgeToolbar';
+import { Github, Star } from 'lucide-react';
 
 interface CanvasProps {
   canvasRef: React.RefObject<HTMLDivElement>;
@@ -242,6 +243,17 @@ export default function Canvas({
           onDelete={handleEdgeDelete}
         />
       )}
+
+      {/* GitHub Link */}
+      <a
+        href="https://github.com/Bayueban/taskLink"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="absolute top-6 right-6 flex items-center gap-2 bg-white/90 backdrop-blur-sm hover:bg-white px-4 py-2.5 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 z-30 group"
+      >
+        <Github className="w-5 h-5 text-gray-700" />
+        <Star className="w-5 h-5 text-gray-400 group-hover:text-yellow-500 group-hover:fill-yellow-500 transition-all duration-200" />
+      </a>
     </div>
   );
 }
